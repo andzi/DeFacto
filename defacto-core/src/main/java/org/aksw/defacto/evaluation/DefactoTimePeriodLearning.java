@@ -3,19 +3,6 @@
  */
 package org.aksw.defacto.evaluation;
 
-import java.io.FileNotFoundException;
-import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Random;
-import java.util.Set;
-
 import org.aksw.defacto.Defacto;
 import org.aksw.defacto.Defacto.TIME_DISTRIBUTION_ONLY;
 import org.aksw.defacto.comp.FMeasureComparator;
@@ -25,12 +12,16 @@ import org.aksw.defacto.evidence.Evidence;
 import org.aksw.defacto.model.DefactoModel;
 import org.aksw.defacto.model.DefactoTimePeriod;
 import org.aksw.defacto.reader.DefactoModelReader;
-import org.apache.commons.lang3.StringUtils;
-import org.aksw.defacto.util.BufferedFileReader;
 import org.aksw.defacto.util.BufferedFileWriter;
 import org.aksw.defacto.util.BufferedFileWriter.WRITER_WRITE_MODE;
 import org.aksw.defacto.util.Encoder.Encoding;
 import org.aksw.defacto.util.Frequency;
+import org.apache.commons.lang3.StringUtils;
+
+import java.io.*;
+import java.text.DecimalFormat;
+import java.util.*;
+import java.util.Map.Entry;
 
 /**
  * @author Daniel Gerber <daniel.gerber@deinestadtsuchtdich.de>
@@ -62,8 +53,8 @@ public class DefactoTimePeriodLearning {
 //		System.out.println(startSingleConfigurationEvaluation("award", Arrays.asList("en", "fr", "de"),
 //				Arrays.asList("award"), "domain", "frequency", "tiny"));
 		
-		System.out.println(startSingleConfigurationEvaluation("award", Arrays.asList("en", "fr", "de"),
-				Arrays.asList("birth"), "domain", "frequency", "tiny"));
+		System.out.println(startSingleConfigurationEvaluation("nbateam", Arrays.asList("en", "fr", "de"),
+				Arrays.asList("nbateam"), "occurrence", "frequency", "small"));
 //		System.out.println(startSingleConfigurationEvaluation("point", Arrays.asList("en", "fr", "de"),
 //				Arrays.asList("award", "birth", "death", "foundationPlace", "publicationDate", "starring", "subsidiary"),
 //				"occurrence", "frequency", "tiny"));
@@ -207,7 +198,12 @@ public class DefactoTimePeriodLearning {
 		
 		CURRENT_LANGUAGE = languages.toString();
 		List<DefactoModel>  models = new ArrayList<>();
-		for ( String relation : relations ) models.addAll(DefactoModelReader.readModels(trainDirectory + "correct/" + relation, true, languages));
+
+		for ( String relation : relations ){
+			System.out.println("dir: " + trainDirectory + "correct/" + relation);
+			models.addAll(DefactoModelReader.readModels(trainDirectory + "correct/" + relation, true, languages));
+		}
+
 		Defacto.DEFACTO_CONFIG.setStringSetting("settings", "TIME_PERIOD_SEARCHER", normalizer);
 		Defacto.DEFACTO_CONFIG.setStringSetting("settings", "periodSearchMethod", searchMethod);
 		Defacto.DEFACTO_CONFIG.setStringSetting("settings", "context-size", contextSize);
@@ -409,7 +405,7 @@ public class DefactoTimePeriodLearning {
 			DefactoModel model = models.get(i); 
 			
 			Evidence evidence = Defacto.checkFact(model, TIME_DISTRIBUTION_ONLY.YES);
-//			createProofFrequency(evidence);
+			createProofFrequency(evidence);
 			DefactoTimePeriod dtp = evidence.defactoTimePeriod;
 			
 			
@@ -521,22 +517,48 @@ public class DefactoTimePeriodLearning {
 			default: throw new RuntimeException("Context size: " + 
 				Defacto.DEFACTO_CONFIG.getStringSetting("settings", "context-size") + " not supported!");
 		}
-		
-		BufferedFileWriter tiny		= new BufferedFileWriter("/Users/gerb/Development/workspaces/experimental/defacto/mltemp/eval/freq/tiny.tsv", Encoding.UTF_8, WRITER_WRITE_MODE.OVERRIDE);
-		for ( Entry<Comparable<?>, Long> entry : DefactoTimePeriodLearning.tiny.sortByValue() ) tiny.write(entry.getKey() + "\t" + entry.getValue());
-		tiny.close();
-		
-		BufferedFileWriter small	= new BufferedFileWriter("/Users/gerb/Development/workspaces/experimental/defacto/mltemp/eval/freq/small.tsv", Encoding.UTF_8, WRITER_WRITE_MODE.OVERRIDE);
-		for ( Entry<Comparable<?>, Long> entry : DefactoTimePeriodLearning.small.sortByValue() ) small.write(entry.getKey() + "\t" + entry.getValue());
-		small.close();
-		
-		BufferedFileWriter medium	= new BufferedFileWriter("/Users/gerb/Development/workspaces/experimental/defacto/mltemp/eval/freq/medium.tsv", Encoding.UTF_8, WRITER_WRITE_MODE.OVERRIDE);
-		for ( Entry<Comparable<?>, Long> entry : DefactoTimePeriodLearning.medium.sortByValue() ) medium.write(entry.getKey() + "\t" + entry.getValue());
-		medium.close();
-		
-		BufferedFileWriter large	= new BufferedFileWriter("/Users/gerb/Development/workspaces/experimental/defacto/mltemp/eval/freq/large.tsv", Encoding.UTF_8, WRITER_WRITE_MODE.OVERRIDE);
-		for ( Entry<Comparable<?>, Long> entry : DefactoTimePeriodLearning.large.sortByValue() ) large.write(entry.getKey() + "\t" + entry.getValue());
-		large.close();
+
+
+        String partFileName = evidence.getModel().getName().split("/")[evidence.getModel().getName().split("/").length - 1].replace(".ttl","");
+
+        String prefix = evidence.getModel().getSubjectUri() + "\t" +
+                evidence.getModel().getPropertyUri() + "\t" +
+                evidence.getModel().getObjectUri() + "\t" +
+                evidence.getModel().getTimePeriod().getFrom() + "\t" +
+                evidence.getModel().getTimePeriod().getTo() + "\t";
+
+        if (evidence.getModel().getTimePeriod().getFrom().equals(null))
+            System.out.print("we've got a problem!");
+
+
+        if (DefactoTimePeriodLearning.tiny.getUniqueCount() > 0){
+            BufferedFileWriter tiny		= new BufferedFileWriter("/Users/dnes/Github/DeFacto/data/freq/" + partFileName + "_tiny.tsv", Encoding.UTF_8, WRITER_WRITE_MODE.OVERRIDE);
+            for ( Entry<Comparable<?>, Long> entry : DefactoTimePeriodLearning.tiny.sortByValue() )
+                tiny.write(prefix + entry.getKey() + "\t" + entry.getValue());
+            tiny.close();
+        }
+
+        if (DefactoTimePeriodLearning.small.getUniqueCount() > 0) {
+            BufferedFileWriter small	= new BufferedFileWriter("/Users/dnes/Github/DeFacto/data/freq/" + partFileName + "_small.tsv", Encoding.UTF_8, WRITER_WRITE_MODE.OVERRIDE);
+            for ( Entry<Comparable<?>, Long> entry : DefactoTimePeriodLearning.small.sortByValue() )
+                small.write(prefix + entry.getKey() + "\t" + entry.getValue());
+            small.close();
+        }
+
+        if (DefactoTimePeriodLearning.medium.getUniqueCount() > 0) {
+            BufferedFileWriter medium	= new BufferedFileWriter("/Users/dnes/Github/DeFacto/data/freq/" + partFileName + "_medium.tsv", Encoding.UTF_8, WRITER_WRITE_MODE.OVERRIDE);
+            for ( Entry<Comparable<?>, Long> entry : DefactoTimePeriodLearning.medium.sortByValue() )
+                medium.write(prefix + entry.getKey() + "\t" + entry.getValue());
+            medium.close();
+        }
+
+        if (DefactoTimePeriodLearning.large.getUniqueCount() > 0) {
+            BufferedFileWriter large	= new BufferedFileWriter("/Users/dnes/Github/DeFacto/data/freq/" + partFileName + "_large.tsv", Encoding.UTF_8, WRITER_WRITE_MODE.OVERRIDE);
+            for ( Entry<Comparable<?>, Long> entry : DefactoTimePeriodLearning.large.sortByValue() )
+                large.write(prefix + entry.getKey() + "\t" + entry.getValue());
+            large.close();
+        }
+
 	}
 
 	/**
@@ -568,4 +590,69 @@ public class DefactoTimePeriodLearning {
 		if ( precision + recall == 0) return 0D;
 		return (2*precision*recall) / (precision + recall);
 	}
+
+/*
+private static void justMergeThem(File path){
+
+        try{
+            File outFolder = new File("/Users/dnes/Github/DeFacto/data/freq");
+
+            for (File out : outFolder.listFiles()) {
+
+                if (out.isFile() && out.getName().contains(".tsv")){
+
+                    String tmpFileName = "tmp_" + out.getAbsolutePath();
+
+                    BufferedReader br = null;
+                    BufferedWriter bw = null;
+                    try {
+                        br = new BufferedReader(new FileReader(out.getAbsolutePath()));
+                        bw = new BufferedWriter(new FileWriter(tmpFileName));
+                        String line, newLine;
+                        while ((line = br.readLine()) != null) {
+
+                            String items[] = line.split("\t");
+
+                            if (items[0] == "null")
+                                newLine = line.replace("1313131", ""+System.currentTimeMillis());
+
+                            bw.write(line+"\n");
+                        }
+
+                    } catch (Exception e) {
+                        return;
+                    } finally {
+                        try {
+                            if(br != null)
+                                br.close();
+                        } catch (IOException e) {
+                            //
+                        }
+                        try {
+                            if(bw != null)
+                                bw.close();
+                        } catch (IOException e) {
+                            //
+                        }
+                    }
+                    // Once everything is complete, delete old file..
+                    File oldFile = new File(oldFileName);
+                    oldFile.delete();
+
+                    // And rename tmp file's name to old file name
+                    File newFile = new File(tmpFileName);
+                    newFile.renameTo(oldFile);
+
+
+                }
+            }
+
+
+
+
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+    */
 }

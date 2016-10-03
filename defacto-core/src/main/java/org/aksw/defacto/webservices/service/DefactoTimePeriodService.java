@@ -4,15 +4,12 @@
  */
 package org.aksw.defacto.webservices.service;
 
-import java.io.File;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Level;
 
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -23,12 +20,9 @@ import javax.ws.rs.core.Response;
 
 import org.aksw.defacto.Constants;
 import org.aksw.defacto.Defacto;
-import org.aksw.defacto.config.DefactoConfig;
 import org.aksw.defacto.evidence.Evidence;
 import org.aksw.defacto.model.DefactoModel;
 import org.aksw.defacto.webservices.client.SimpleDefactoClient;
-import org.aksw.defacto.webservices.server.DefactoServer;
-import org.ini4j.Ini;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
